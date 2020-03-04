@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,14 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Lint as: python2, python3
 """Element wise ops acting on segments of arrays."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tf_quant_finance.math import diff_ops
 
@@ -177,7 +174,7 @@ def segment_cumsum(x, segment_ids, exclusive=False, dtype=None, name=None):
       `n-sum(min(order, length(segment_j)), j)` where the sum is over segments.
       If `exclusive` is False, then the size is `n`.
   """
-  with tf.compat.v1.name_scope(name, default_name='segment_diff', values=[x]):
+  with tf.compat.v1.name_scope(name, default_name='segment_cumsum', values=[x]):
     x = tf.convert_to_tensor(x, dtype=dtype)
     raw_cumsum = tf.math.cumsum(x, exclusive=exclusive)
     if segment_ids is None:

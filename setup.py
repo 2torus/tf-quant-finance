@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +14,6 @@
 # limitations under the License.
 # ==============================================================================
 """Setup for pip package."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from os import path
 import sys
@@ -34,9 +32,9 @@ cwd = path.abspath(path.dirname(__file__))
 with open(path.join(cwd, 'README.md'), encoding='utf-8') as f:
   long_description = f.read()
 
-__version__ = '0.0.1dev8'
+__version__ = '0.0.1dev17'
 REQUIRED_PACKAGES = [
-    'attrs >= 18.2.0', 'tensorflow-probability >= 0.5.0', 'numpy >= 1.13.3'
+    'attrs >= 18.2.0', 'tensorflow-probability >= 0.8.0', 'numpy >= 1.16.0'
 ]
 
 project_name = 'tf-quant-finance'
@@ -71,10 +69,10 @@ setup(
         'Intended Audience :: Education',
         'Intended Audience :: Financial and Insurance Industry',
         'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Natural Language :: English',
         'Topic :: Scientific/Engineering :: Mathematics',
         'Topic :: Software Development :: Libraries :: Python Modules',

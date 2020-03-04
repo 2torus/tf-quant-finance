@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Lint as: python2, python3
 """The monotone convex interpolation method.
 
 The monotone convex method is a scheme devised by Hagan and West (Ref [1]). It
@@ -52,11 +52,7 @@ curves at the same time).
   Wilmott Magazine, pp. 70-81. May 2008.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tf_quant_finance.math import piecewise
 from tf_quant_finance.math.diff_ops import diff
@@ -169,7 +165,7 @@ def interpolate(times,
         computed from the largest interval time that is smaller than the time
         up to the given time.
   """
-  with tf.name_scope(
+  with tf.compat.v1.name_scope(
       name,
       default_name='interpolate',
       values=[times, interval_times, interval_values]):
@@ -608,6 +604,8 @@ def _region_3(g1plus2g0, g0plus2g1, g0, g1, x):
   eta = 3 * g1 / (g1 - g0)
   x_cap = tf.math.minimum(x, eta)
   ratio = (eta - x_cap) / eta
+  # Replace NaN values (corresponding to g1 == 0) with zeros.
+  ratio = tf.where(tf.math.is_nan(ratio), tf.zeros_like(ratio), ratio)
   region_3_value = g1 + (g0 - g1) * tf.math.square(ratio)
   integrated_value = g1 * x + eta * (g0 - g1) / 3 * (1 - ratio**3)
   return is_region_3, region_3_value, integrated_value

@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +14,7 @@
 # limitations under the License.
 """TensorFlow Quantitative Finance."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
+import sys
 
 # We need to put some imports inside a function call below, and the function
 # call needs to come before the *actual* imports that populate the
@@ -26,7 +24,13 @@ from __future__ import print_function
 # pylint: disable=g-import-not-at-top
 
 # Update this whenever we need to depend on a newer TensorFlow release.
-_REQUIRED_TENSORFLOW_VERSION = "1.12"  # pylint: disable=g-statement-before-imports
+_REQUIRED_TENSORFLOW_VERSION = "2.1"  # pylint: disable=g-statement-before-imports
+
+
+# Ensure Python 3 is used.
+def _check_py_version():
+  if sys.version_info[0] < 3:
+    raise Exception("Please use Python 3. Python 2 is not supported.")
 
 
 # Ensure TensorFlow is importable and its version is sufficiently recent. This
@@ -40,7 +44,7 @@ def _ensure_tf_install():  # pylint: disable=g-statement-before-imports
     inadequate.
   """
   try:
-    import tensorflow as tf
+    import tensorflow.compat.v2 as tf
   except ImportError:
     # Print more informative error message, then reraise.
     print("\n\nFailed to import TensorFlow. Please note that TensorFlow is not "
@@ -62,19 +66,22 @@ def _ensure_tf_install():  # pylint: disable=g-statement-before-imports
             required=_REQUIRED_TENSORFLOW_VERSION, present=tf.__version__))
 
 
+_check_py_version()
 _ensure_tf_install()
 
+from tf_quant_finance import black_scholes
+from tf_quant_finance import experimental
 from tf_quant_finance import math
 from tf_quant_finance import models
 from tf_quant_finance import rates
-from tf_quant_finance import volatility
 from tensorflow.python.util.all_util import remove_undocumented  # pylint: disable=g-direct-tensorflow-import
 
 _allowed_symbols = [
+    "black_scholes",
+    "experimental",
     "math",
     "models",
     "rates",
-    "volatility",
 ]
 
 remove_undocumented(__name__, _allowed_symbols)

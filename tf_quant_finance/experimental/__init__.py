@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +15,16 @@
 
 """Experimental modules."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from tf_quant_finance.experimental import finite_difference
+from tf_quant_finance.experimental import dates
+from tf_quant_finance.experimental import instruments
+from tf_quant_finance.experimental import lsm_algorithm
 from tensorflow.python.util.all_util import remove_undocumented  # pylint: disable=g-direct-tensorflow-import
 
 
 _allowed_symbols = [
-    'finite_difference',
+    'dates',
+    'instruments',
+    'lsm_algorithm',
 ]
 
 remove_undocumented(__name__, _allowed_symbols)

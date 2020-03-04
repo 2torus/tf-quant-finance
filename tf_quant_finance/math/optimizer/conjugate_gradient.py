@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """The Conjugate Gradient optimization algorithm.
 
 References:
@@ -26,14 +26,11 @@ References:
   https://github.com/JuliaNLSolvers/LineSearches.jl
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import collections
 
 import attr
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tensorflow_probability.python.optimizer import converged_all
 from tensorflow_probability.python.optimizer import linesearch
@@ -343,7 +340,7 @@ def minimize(value_and_gradients_function,
 
       # Generate initial guess for line search.
       # [HZ2006] suggests to generate first initial guess separately, but
-      # [JuliaLiseSeacrhes] generates it as if previous step length was 1, and
+      # [JuliaLineSearches] generates it as if previous step length was 1, and
       # we do the same.
       phi_0 = f_k
       dphi_0 = _dot(g_k, d_k)
@@ -389,11 +386,13 @@ def minimize(value_and_gradients_function,
       # If line search was skipped, take step length from initial guess.
       # To save objective evaluation, use objective value and gradient returned
       # by line search or initial guess.
-      a_k = tf.where(skip_line_search, init_step.x, ls_result.left.x)
+      a_k = tf.compat.v1.where(
+          skip_line_search, init_step.x, ls_result.left.x)
       x_kp1 = state.position + tf.expand_dims(a_k, -1) * d_k
-      f_kp1 = tf.where(skip_line_search, init_step.f, ls_result.left.f)
-      g_kp1 = tf.where(skip_line_search, init_step.full_gradient,
-                       ls_result.left.full_gradient)
+      f_kp1 = tf.compat.v1.where(
+          skip_line_search, init_step.f, ls_result.left.f)
+      g_kp1 = tf.compat.v1.where(skip_line_search, init_step.full_gradient,
+                                 ls_result.left.full_gradient)
 
       # Evaluate next direction.
       # Use formulas (2.7)-(2.11) from [HZ2013] with P_k=I.
@@ -419,14 +418,14 @@ def minimize(value_and_gradients_function,
           num_iterations=state.num_iterations + 1,
           num_objective_evaluations=state.num_objective_evaluations +
           step_guess_result.func_evals + ls_result.func_evals,
-          position=tf.where(state.converged, x_k, x_kp1),
-          objective_value=tf.where(state.converged, f_k, f_kp1),
-          objective_gradient=tf.where(state.converged, g_k, g_kp1),
+          position=tf.compat.v1.where(state.converged, x_k, x_kp1),
+          objective_value=tf.compat.v1.where(state.converged, f_k, f_kp1),
+          objective_gradient=tf.compat.v1.where(state.converged, g_k, g_kp1),
           direction=d_kp1,
           prev_step=a_k)
       return (new_state,)
 
-    final_state = tf.compat.v1.while_loop(
+    final_state = tf.while_loop(
         _cond, _body, (initial_state,),
         parallel_iterations=parallel_iterations)[0]
     return OptimizerResult(
@@ -495,8 +494,9 @@ def _init_step(pos, prev_step, func, psi_1, psi_2, quad_step):
     quad_step_success = tf.logical_and(step.f <= phi_0, q_koef > 0.0)
 
     def update_result_1():
-      new_x = tf.where(quad_step_success,
-                       -0.5 * (derphi_0 * step.x**2) / q_koef, result.step.x)
+      new_x = tf.compat.v1.where(
+          quad_step_success,
+          -0.5 * (derphi_0 * step.x**2) / q_koef, result.step.x)
       return _StepGuessResult(
           step=func(new_x),
           func_evals=result.func_evals + 1,
@@ -507,7 +507,7 @@ def _init_step(pos, prev_step, func, psi_1, psi_2, quad_step):
         tf.reduce_any(quad_step_success), update_result_1, lambda: result)
 
   def update_result_2():
-    new_x = tf.where(can_take, result.step.x, psi_2 * prev_step)
+    new_x = tf.compat.v1.where(can_take, result.step.x, psi_2 * prev_step)
     return _StepGuessResult(
         step=func(new_x),
         func_evals=result.func_evals + 1,

@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,15 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Tests for random.multivariate_normal."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import tf_quant_finance as tff
 from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
@@ -104,6 +101,90 @@ class RandomTest(tf.test.TestCase):
         np.cov(sample[:, 0, :], rowvar=False), covariance, decimal=1)
     np.testing.assert_array_almost_equal(
         np.cov(sample[:, 1, :], rowvar=False), covariance, decimal=1)
+
+  def test_mean_default_sobol(self):
+    """Tests that the default value of mean is 0."""
+    covar = np.array([[1.0, 0.1], [0.1, 1.0]])
+    # The number of initial points of the Sobol sequence to skip
+    skip = 1000
+    sample = self.evaluate(
+        tff_rnd.mv_normal_sample(
+            [10000], covariance_matrix=covar,
+            random_type=tff_rnd.RandomType.SOBOL,
+            skip=skip))
+    np.testing.assert_array_equal(sample.shape, [10000, 2])
+    self.assertArrayNear(np.mean(sample, axis=0), [0.0, 0.0], 1e-2)
+    self.assertArrayNear(
+        np.cov(sample, rowvar=False).reshape([-1]), covar.reshape([-1]), 2e-2)
+
+  def test_mean_and_scale_sobol(self):
+    """Tests sample for scale specification."""
+    mean = np.array([[1.0, 0.1], [0.1, 1.0], [2.0, 0.3], [0., 0.]])
+    scale = np.array([[0.4, -0.1], [0.22, 1.38]])
+    covariance = np.matmul(scale, scale.transpose())
+    sample_shape = [2, 3, 5000]
+    sample = self.evaluate(
+        tff_rnd.mv_normal_sample(
+            sample_shape, mean=mean, scale_matrix=scale,
+            random_type=tff_rnd.RandomType.SOBOL))
+
+    np.testing.assert_array_equal(sample.shape, sample_shape + [4, 2])
+    np.testing.assert_array_almost_equal(
+        np.mean(sample, axis=(0, 1, 2)), mean, decimal=1)
+    for i in range(4):
+      np.testing.assert_array_almost_equal(
+          np.cov(sample[0, 1, :, i, :], rowvar=False), covariance, decimal=1)
+
+  def test_mean_default_halton(self):
+    """Tests that the default value of mean is 0."""
+    covar = np.array([[1.0, 0.1], [0.1, 1.0]])
+    # The number of initial points of the Sobol sequence to skip
+    skip = 1000
+    sample = self.evaluate(
+        tff_rnd.mv_normal_sample(
+            [10000], covariance_matrix=covar,
+            random_type=tff_rnd.RandomType.HALTON_RANDOMIZED,
+            skip=skip))
+    np.testing.assert_array_equal(sample.shape, [10000, 2])
+    self.assertArrayNear(np.mean(sample, axis=0), [0.0, 0.0], 1e-2)
+    self.assertArrayNear(
+        np.cov(sample, rowvar=False).reshape([-1]), covar.reshape([-1]), 2e-2)
+
+  def test_mean_default_halton_randomization_params(self):
+    """Tests that the default value of mean is 0."""
+    dtype = np.float32
+    covar = np.array([[1.0, 0.1], [0.1, 1.0]], dtype=dtype)
+    num_samples = 10000
+    # Set up randomization parameters
+    randomization_params = tff.math.random.halton.sample(
+        2, num_samples, randomized=True, seed=42)[1]
+    sample = self.evaluate(
+        tff_rnd.mv_normal_sample(
+            [num_samples], covariance_matrix=covar,
+            random_type=tff_rnd.RandomType.HALTON_RANDOMIZED,
+            randomization_params=randomization_params))
+    np.testing.assert_array_equal(sample.shape, [num_samples, 2])
+    self.assertArrayNear(np.mean(sample, axis=0), [0.0, 0.0], 1e-2)
+    self.assertArrayNear(
+        np.cov(sample, rowvar=False).reshape([-1]), covar.reshape([-1]), 2e-2)
+
+  def test_mean_and_scale_halton(self):
+    """Tests sample for scale specification."""
+    mean = np.array([[1.0, 0.1], [0.1, 1.0], [2.0, 0.3], [0., 0.]])
+    scale = np.array([[0.4, -0.1], [0.22, 1.38]])
+    covariance = np.matmul(scale, scale.transpose())
+    sample_shape = [2, 3, 5000]
+    sample = self.evaluate(
+        tff_rnd.mv_normal_sample(
+            sample_shape, mean=mean, scale_matrix=scale,
+            random_type=tff_rnd.RandomType.HALTON))
+
+    np.testing.assert_array_equal(sample.shape, sample_shape + [4, 2])
+    np.testing.assert_array_almost_equal(
+        np.mean(sample, axis=(0, 1, 2)), mean, decimal=1)
+    for i in range(4):
+      np.testing.assert_array_almost_equal(
+          np.cov(sample[0, 2, :, i, :], rowvar=False), covariance, decimal=1)
 
   def test_mean_and_scale_antithetic(self):
     """Tests antithetic sampler for scale specification."""

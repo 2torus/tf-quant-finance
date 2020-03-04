@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,15 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Lint as: python2, python3
 """Collection of functions to compute properties of cashflows."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tf_quant_finance.math import segment_ops
 
@@ -81,7 +76,7 @@ def forward_rates_from_yields(yields,
 
   ```python
     dtype = np.float64
-    groups = np.array([0,    0    0,   1,    1,   1,  1  ])
+    groups = np.array([0, 0, 0, 1, 1, 1, 1])
     times = np.array([0.25, 0.5, 1.0, 0.25, 0.5, 1.0, 1.5], dtype=dtype)
     rates = np.array([0.04, 0.041, 0.044, 0.022, 0.025, 0.028, 0.036],
                      dtype=dtype)
@@ -188,7 +183,7 @@ def yields_from_forward_rates(discrete_forwards,
 
   ```python
     dtype = np.float64
-    groups = np.array([0,    0    0,   1,    1,   1,  1  ])
+    groups = np.array([0, 0, 0, 1, 1, 1, 1])
     times = np.array([0.25, 0.5, 1.0, 0.25, 0.5, 1.0, 1.5], dtype=dtype)
     discrete_forwards = np.array(
         [0.04, 0.042, 0.047, 0.022, 0.028, 0.031, 0.052], dtype=dtype)

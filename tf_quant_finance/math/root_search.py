@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Root search functions."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import collections
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 BrentResults = collections.namedtuple(
     "BrentResults",
@@ -143,7 +140,7 @@ def _quadratic_interpolation_step(x1, x2, x3, y1, y2, y3):
 
 def default_relative_root_tolerance(dtype):
   """Returns the default relative root tolerance used for a TensorFlow dtype."""
-  return 4 * np.finfo(dtype.as_numpy_dtype()).eps
+  return 4 * np.finfo(dtype.as_numpy_dtype(0)).eps
 
 
 def _should_stop(state, stopping_policy_fn):
@@ -590,7 +587,7 @@ def _brent(objective_fn,
     ValueError: if the `stopping_policy_fn` is not callable.
   """
 
-  with tf.name_scope(name, "brent_root", [
+  with tf.compat.v1.name_scope(name, default_name="brent_root", values=[
       left_bracket, right_bracket, value_at_left_bracket,
       value_at_right_bracket, max_iterations
   ]):
@@ -751,7 +748,7 @@ def brentq(objective_fn,
   #### Examples
 
   ```python
-  import tensorflow as tf
+  import tensorflow.compat.v2 as tf
   tf.enable_eager_execution()
 
   # Example 1: Roots of a single function for two pairs of starting points.

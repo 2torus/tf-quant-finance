@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,19 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Tests for quasirandom.sobol."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 import tensorflow_probability as tfp
-
-from tf_quant_finance.math import random
 from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
+from tf_quant_finance.math import random
 
 
 @test_util.run_all_in_graph_and_eager_modes
@@ -33,12 +29,14 @@ class SampleSobolSequenceTest(tf.test.TestCase):
   def test_known_values_small_dimension(self):
     # The first five elements of the non-randomized Sobol sequence
     # with dimension 2
-    sample = random.sobol.sample(2, 5)
-    # These are in the original order, not Gray code order.
-    expected = np.array([[0.5, 0.5], [0.25, 0.75], [0.75, 0.25], [0.125, 0.625],
-                         [0.625, 0.125]],
-                        dtype=np.float32)
-    self.assertAllClose(expected, self.evaluate(sample), rtol=1e-6)
+    for dtype in [np.float16, np.float32, np.float64]:
+      sample = random.sobol.sample(2, 5, dtype=dtype)
+      # These are in the original order, not Gray code order.
+      expected = np.array([[0.5, 0.5], [0.25, 0.75], [0.75, 0.25],
+                           [0.125, 0.625], [0.625, 0.125]],
+                          dtype=dtype)
+      self.assertAllClose(expected, self.evaluate(sample), rtol=1e-6)
+      self.assertEqual(sample.dtype.as_numpy_dtype, dtype)
 
   def test_more_known_values(self):
     # The first 31 elements of the non-randomized Sobol sequence
@@ -102,25 +100,25 @@ class SampleSobolSequenceTest(tf.test.TestCase):
     # (N=number of samples). For QMC in low dimensions, the expected convergence
     # rate is ~ 1/N. Hence we should only need 1e3 samples as compared to the
     # 1e6 samples used in the pseudo-random monte carlo.
-    mu_p = tf.constant([-1., 1.], dtype=tf.float64)
-    mu_q = tf.constant([0., 0.], dtype=tf.float64)
-    sigma_p = tf.constant([0.5, 0.5], dtype=tf.float64)
-    sigma_q = tf.constant([1., 1.], dtype=tf.float64)
+    dtype = tf.float64
+    mu_p = tf.constant([-1., 1.], dtype=dtype)
+    mu_q = tf.constant([0., 0.], dtype=dtype)
+    sigma_p = tf.constant([0.5, 0.5], dtype=dtype)
+    sigma_q = tf.constant([1., 1.], dtype=dtype)
     p = tfp.distributions.Normal(loc=mu_p, scale=sigma_p)
     q = tfp.distributions.Normal(loc=mu_q, scale=sigma_q)
 
-    cdf_sample = random.sobol.sample(2, n)
+    cdf_sample = random.sobol.sample(2, n, dtype=dtype)
     q_sample = q.quantile(cdf_sample)
 
     # Compute E_p[X].
-    e_x = tf.contrib.bayesflow.monte_carlo.expectation_importance_sampler(
-        f=lambda x: x, log_p=p.log_prob, sampling_dist_q=q, z=q_sample, seed=42)
+    e_x = tf.reduce_mean(q_sample * p.prob(q_sample) / q.prob(q_sample), 0)
 
-    # Compute E_p[X^2].
-    e_x2 = tf.contrib.bayesflow.monte_carlo.expectation_importance_sampler(
-        f=tf.square, log_p=p.log_prob, sampling_dist_q=q, z=q_sample, seed=1412)
+    # Compute E_p[X^2 - E_p[X]^2].
+    e_x2 = tf.reduce_mean(q_sample**2 * p.prob(q_sample) / q.prob(q_sample)
+                          - e_x**2, 0)
+    stddev = tf.sqrt(e_x2)
 
-    stddev = tf.sqrt(e_x2 - tf.square(e_x))
     # Keep the tolerance levels the same as in monte_carlo_test.py.
     self.assertEqual(p.batch_shape, e_x.shape)
     self.assertAllClose(self.evaluate(p.mean()), self.evaluate(e_x), rtol=0.01)
@@ -141,6 +139,20 @@ class SampleSobolSequenceTest(tf.test.TestCase):
     self.assertAllClose(corr, 0.0, atol=0.05)
     self.assertAllClose((x * y).mean(), 0.25, rtol=0.05)
 
+  def test_dim_should_be_positive(self):
+    """Error is trigerred if dim < 1."""
+    with self.assertRaises(ValueError):
+      self.evaluate(random.sobol.sample(0, 5, validate_args=True))
+
+  def test_skip_should_be_non_negative(self):
+    """Error is trigerred if skip < 0."""
+    with self.assertRaises(tf.errors.InvalidArgumentError):
+      self.evaluate(random.sobol.sample(2, 5, skip=-10, validate_args=True))
+
+  def test_num_results_should_be_positive(self):
+    """Error is trigerred if num_results < 1."""
+    with self.assertRaises(tf.errors.InvalidArgumentError):
+      self.evaluate(random.sobol.sample(2, 0, validate_args=True))
 
 if __name__ == '__main__':
   tf.test.main()

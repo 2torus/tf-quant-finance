@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +14,12 @@
 # limitations under the License.
 """Optimization methods."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from tensorflow_probability.python.optimizer import bfgs_minimize
 from tensorflow_probability.python.optimizer import converged_all
 from tensorflow_probability.python.optimizer import converged_any
+from tensorflow_probability.python.optimizer import differential_evolution_minimize
+from tensorflow_probability.python.optimizer import differential_evolution_one_step
 from tensorflow_probability.python.optimizer import lbfgs_minimize
 from tensorflow_probability.python.optimizer import linesearch
 from tensorflow_probability.python.optimizer import nelder_mead_minimize
@@ -31,6 +31,8 @@ from tensorflow.python.util.all_util import remove_undocumented  # pylint: disab
 
 _allowed_symbols = [
     'bfgs_minimize',
+    'differential_evolution_minimize',
+    'differential_evolution_one_step',
     'conjugate_gradient_minimize',
     'converged_all',
     'converged_any',

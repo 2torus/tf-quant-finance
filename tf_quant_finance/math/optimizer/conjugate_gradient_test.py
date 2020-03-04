@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,19 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Tests for Fletcher-Reeves algorithm."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
-from scipy import special
-from scipy import stats
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import tf_quant_finance as tff
+from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
 
 
 def _norm(x):
@@ -62,15 +58,14 @@ def _beale(coord):
   return term1 + term2 + term3
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class ConjugateGradientTest(tf.test.TestCase):
 
   def _check_algorithm(self,
                        func=None,
                        start_point=None,
                        gtol=1e-4,
-                       expected_argmin=None,
-                       expected_iterations=None,
-                       expected_func_calls=None):
+                       expected_argmin=None):
     """Runs algorithm on given test case and verifies result."""
     val_grad_func = lambda x: tff.math.value_and_gradient(func, x)
     start_point = tf.constant(start_point, dtype=tf.float64)
@@ -79,7 +74,8 @@ class ConjugateGradientTest(tf.test.TestCase):
     f_call_ctr = tf.Variable(0, dtype=tf.int32)
 
     def val_grad_func_with_counter(x):
-      with tf.compat.v1.control_dependencies([tf.assign_add(f_call_ctr, 1)]):
+      with tf.compat.v1.control_dependencies(
+          [tf.compat.v1.assign_add(f_call_ctr, 1)]):
         return val_grad_func(x)
 
     result = tff.math.optimizer.conjugate_gradient_minimize(
@@ -87,10 +83,9 @@ class ConjugateGradientTest(tf.test.TestCase):
         start_point,
         tolerance=gtol,
         max_iterations=200)
-    with self.test_session() as sess:
-      sess.run(tf.global_variables_initializer())
-      result = sess.run(result)
-      f_call_ctr = sess.run(f_call_ctr)
+    self.evaluate(tf.compat.v1.global_variables_initializer())
+    result = self.evaluate(result)
+    f_call_ctr = self.evaluate(f_call_ctr)
 
     # Check that minimum is found.
     self.assertAllClose(result.position, expected_argmin, rtol=1e-3, atol=1e-3)
@@ -101,14 +96,6 @@ class ConjugateGradientTest(tf.test.TestCase):
 
     # Check that number of function calls, declared by algorithm, is correct.
     self.assertEqual(result.num_objective_evaluations, f_call_ctr)
-
-    # Check number of iterations.
-    if expected_iterations is not None:
-      self.assertEqual(expected_iterations, result.num_iterations)
-
-    # Check number of objective evaluations.
-    if expected_func_calls is not None:
-      self.assertEqual(expected_func_calls, result.num_objective_evaluations)
 
     # Check returned function and gradient values.
     pos = tf.constant(result.position, dtype=tf.float64)
@@ -124,9 +111,7 @@ class ConjugateGradientTest(tf.test.TestCase):
     self._check_algorithm(
         func=lambda x: (x[0] - 20)**2,
         start_point=[100.0],
-        expected_argmin=[20.0],
-        expected_iterations=1,
-        expected_func_calls=3)
+        expected_argmin=[20.0])
 
   def test_quadratics(self):
 
@@ -161,9 +146,7 @@ class ConjugateGradientTest(tf.test.TestCase):
         func=lambda x: tf.reduce_sum(x**4),
         start_point=[1, 2, 3, 4, 5],
         expected_argmin=[0, 0, 0, 0, 0],
-        gtol=1e-10,
-        expected_iterations=24,
-        expected_func_calls=50)
+        gtol=1e-10)
 
   def test_logistic_regression(self):
     dim = 5
@@ -172,9 +155,9 @@ class ConjugateGradientTest(tf.test.TestCase):
     betas = np.random.randn(dim)  # The true beta
     intercept = np.random.randn()  # The true intercept
     features = np.random.randn(n_objs, dim)  # The feature matrix
-    probs = special.expit(
-        np.matmul(features, np.expand_dims(betas, -1)) + intercept)
-    labels = stats.bernoulli.rvs(probs)  # The true labels
+    probs = 1 / (1 + np.exp(
+        -np.matmul(features, np.expand_dims(betas, -1)) - intercept))
+    labels = np.random.binomial(1, probs)  # The true labels
     regularization = 0.8
     feat = tf.constant(features)
     lab = tf.constant(labels, dtype=feat.dtype)
@@ -198,9 +181,7 @@ class ConjugateGradientTest(tf.test.TestCase):
         func=f_negative_log_likelihood,
         start_point=start_point,
         expected_argmin=argmin,
-        gtol=1e-5,
-        expected_iterations=24,
-        expected_func_calls=62)
+        gtol=1e-5)
 
   def test_data_fitting(self):
     """Tests MLE estimation for a simple geometric GLM."""
@@ -228,86 +209,66 @@ class ConjugateGradientTest(tf.test.TestCase):
     self._check_algorithm(
         func=neg_log_likelihood,
         start_point=np.ones(shape=[dim]),
-        expected_argmin=[-0.020460034354, 0.171708568111, 0.021200423717],
-        gtol=1e-6,
-        expected_iterations=10)
+        expected_argmin=[-0.020460034354, 0.171708568111, 0.021200423717])
 
   def test_rosenbrock_2d_v1(self):
     self._check_algorithm(
         func=_rosenbrock,
         start_point=[-1.2, 2],
-        expected_argmin=[1.0, 1.0],
-        expected_iterations=35,
-        expected_func_calls=98)
+        expected_argmin=[1.0, 1.0])
 
   def test_rosenbrock_2d_v2(self):
     self._check_algorithm(
         func=_rosenbrock,
         start_point=[7, -12],
-        expected_argmin=[1.0, 1.0],
-        expected_iterations=30,
-        expected_func_calls=78)
+        expected_argmin=[1.0, 1.0])
 
   def test_rosenbock_7d(self):
     self._check_algorithm(
         func=_rosenbrock,
         start_point=np.zeros(7),
-        expected_argmin=np.ones(7),
-        expected_iterations=146,
-        expected_func_calls=297)
+        expected_argmin=np.ones(7))
 
   def test_himmelblau_v1(self):
     self._check_algorithm(
         func=_himmelblau,
         start_point=[4, 3],
         expected_argmin=[3.0, 2.0],
-        gtol=1e-8,
-        expected_iterations=9,
-        expected_func_calls=19)
+        gtol=1e-8)
 
   def test_himmelblau_v2(self):
     self._check_algorithm(
         func=_himmelblau,
         start_point=[-2, 3],
         expected_argmin=[-2.805118, 3.131312],
-        gtol=1e-8,
-        expected_iterations=7,
-        expected_func_calls=17)
+        gtol=1e-8)
 
   def test_himmelblau_v3(self):
     self._check_algorithm(
         func=_himmelblau,
         start_point=[-3, -3],
         expected_argmin=[-3.779310, -3.283186],
-        gtol=1e-8,
-        expected_iterations=7,
-        expected_func_calls=16)
+        gtol=1e-8)
 
   def test_himmelblau_v4(self):
     self._check_algorithm(
         func=_himmelblau,
         start_point=[3, -1],
         expected_argmin=[3.584428, -1.848126],
-        gtol=1e-8,
-        expected_iterations=10,
-        expected_func_calls=23)
+        gtol=1e-8)
 
   def test_mc_cormick(self):
     self._check_algorithm(
         func=_mc_cormick,
         start_point=[0, 0],
-        expected_argmin=[-0.54719, -1.54719],
-        expected_iterations=5,
-        expected_func_calls=11)
+        expected_argmin=[-0.54719, -1.54719])
 
   def test_beale(self):
     self._check_algorithm(
         func=_beale,
         start_point=[-1.0, -1.0],
         expected_argmin=[3.0, 0.5],
-        gtol=1e-8,
-        expected_iterations=14,
-        expected_func_calls=30)
+        gtol=1e-8)
 
   def test_himmelblau_batch_all(self):
     self._check_algorithm(
@@ -315,9 +276,7 @@ class ConjugateGradientTest(tf.test.TestCase):
         start_point=[[1, 1], [-2, 2], [-1, -1], [1, -2]],
         expected_argmin=[[3, 2], [-2.805118, 3.131312], [-3.779310, -3.283186],
                          [3.584428, -1.848126]],
-        gtol=1e-8,
-        expected_iterations=11,
-        expected_func_calls=35)
+        gtol=1e-8)
 
   def test_himmelblau_batch_any(self):
     val_grad_func = tff.math.make_val_and_grad_fn(_himmelblau)
@@ -346,13 +305,6 @@ class ConjugateGradientTest(tf.test.TestCase):
     self.assertEqual(batch_results.num_iterations, 7)
     self.assertEqual(batch_results.num_objective_evaluations, 27)
 
-  def test_multiple_functions(self):
-    # Define 3 independednt quadratic functions, each with its own minimum.
-    minima = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
-    func = lambda x: tf.reduce_sum(tf.square(x - minima), axis=1)
-    self._check_algorithm(
-        func=func, start_point=np.zeros_like(minima), expected_argmin=minima)
-
   def test_dynamic_shapes(self):
     """Can build op with dynamic shapes in graph mode."""
     if tf.executing_eagerly():
@@ -364,18 +316,24 @@ class ConjugateGradientTest(tf.test.TestCase):
     def quadratic(x):
       return tf.reduce_sum(input_tensor=scales * (x - minimum)**2)
 
-    # Test with a vector of unknown dimension, and a fully unknown shape.
-    for shape in ([None], None):
-      start = tf.compat.v1.placeholder(tf.float32, shape=shape)
-      op = tff.math.optimizer.conjugate_gradient_minimize(
-          quadratic, initial_position=start, tolerance=1e-8)
-      self.assertFalse(op.position.shape.is_fully_defined())
+    # Test with a vector of unknown dimension.
+    start = tf.compat.v1.placeholder(tf.float32, shape=[None])
+    op = tff.math.optimizer.conjugate_gradient_minimize(
+        quadratic, initial_position=start, tolerance=1e-8)
+    self.assertFalse(op.position.shape.is_fully_defined())
 
-      with self.cached_session() as session:
-        results = session.run(op, feed_dict={start: [0.6, 0.8]})
-      self.assertTrue(results.converged)
-      self.assertLessEqual(_norm(results.objective_gradient), 1e-8)
-      self.assertArrayNear(results.position, minimum, 1e-5)
+    with self.cached_session() as session:
+      results = session.run(op, feed_dict={start: [0.6, 0.8]})
+    self.assertTrue(results.converged)
+    self.assertLessEqual(_norm(results.objective_gradient), 1e-8)
+    self.assertArrayNear(results.position, minimum, 1e-5)
+
+  def test_multiple_functions(self):
+    # Define 3 independednt quadratic functions, each with its own minimum.
+    minima = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    func = lambda x: tf.reduce_sum(tf.square(x - minima), axis=1)
+    self._check_algorithm(
+        func=func, start_point=np.zeros_like(minima), expected_argmin=minima)
 
   def test_float32(self):
     minimum = np.array([1.0, 1.0], dtype=np.float32)

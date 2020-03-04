@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,23 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Tests for random.halton."""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 from six.moves import range
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 import tensorflow_probability as tfp
-
-from tf_quant_finance.math import random
 from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
+from tf_quant_finance.math import random
 
-# TODO(b/140242349): Remove dependency on contrib, which is being deprecated.
-tfb = tf.contrib.bayesflow
 tfd = tfp.distributions
 
 
@@ -51,14 +44,16 @@ class HaltonSequenceTest(tf.test.TestCase):
     expected = np.array([[1. / 2, 1. / 3], [1. / 4, 2. / 3], [3. / 4, 1. / 9],
                          [1. / 8, 4. / 9], [5. / 8, 7. / 9]],
                         dtype=np.float32)
-    sample, _ = random.halton.sample(2, num_results=tf.constant(5), randomized=False)
+    sample, _ = random.halton.sample(2, num_results=tf.constant(5),
+                                     randomized=False)
     self.assertAllClose(expected, self.evaluate(sample), rtol=1e-6)
 
   def test_sequence_indices(self):
     """Tests access of sequence elements by index."""
     dim = 5
     indices = tf.range(10, dtype=tf.int32)
-    sample_direct, _ = random.halton.sample(dim, num_results=10, randomized=False)
+    sample_direct, _ = random.halton.sample(dim, num_results=10,
+                                            randomized=False)
     sample_from_indices, _ = random.halton.sample(
         dim, sequence_indices=indices, randomized=False)
     self.assertAllClose(
@@ -97,14 +92,13 @@ class HaltonSequenceTest(tf.test.TestCase):
     q_sample = q.quantile(cdf_sample)
 
     # Compute E_p[X].
-    e_x = tfb.monte_carlo.expectation_importance_sampler(
-        f=lambda x: x, log_p=p.log_prob, sampling_dist_q=q, z=q_sample, seed=42)
+    e_x = tf.reduce_mean(q_sample * p.prob(q_sample) / q.prob(q_sample), 0)
 
-    # Compute E_p[X^2].
-    e_x2 = tfb.monte_carlo.expectation_importance_sampler(
-        f=tf.square, log_p=p.log_prob, sampling_dist_q=q, z=q_sample, seed=1412)
+    # Compute E_p[X^2 - E_p[X]^2].
+    e_x2 = tf.reduce_mean(q_sample**2 * p.prob(q_sample) / q.prob(q_sample)
+                          - e_x**2, 0)
+    stddev = tf.sqrt(e_x2)
 
-    stddev = tf.sqrt(e_x2 - tf.square(e_x))
     # Keep the tolerance levels the same as in monte_carlo_test.py.
     self.assertEqual(p.batch_shape, e_x.shape)
     self.assertAllClose(self.evaluate(p.mean()), self.evaluate(e_x), rtol=0.01)
@@ -146,7 +140,6 @@ class HaltonSequenceTest(tf.test.TestCase):
   def test_randomized_qmc_basic(self):
     """Tests the randomization of the random.halton sequences."""
     # This test is identical to the example given in Owen (2017), Figure 5.
-
     dim = 20
     num_results = 2000
     replica = 5
@@ -181,7 +174,6 @@ class HaltonSequenceTest(tf.test.TestCase):
     This test confirms that the mean squared error of RQMC estimation falls
     as O(N^(2-e)) for any e>0.
     """
-
     n, m = 5, 5
     dim = n + m
     num_results_lo, num_results_hi = 500, 5000
@@ -220,10 +212,6 @@ class HaltonSequenceTest(tf.test.TestCase):
     [sample1_, sample2_] = self.evaluate([sample1, sample2])
     self.assertAllClose(sample1_, sample2_, atol=0., rtol=1e-6)
 
-  def test_randomized_without_seed_raises(self):
-    with self.assertRaises(ValueError):
-      random.halton.sample(1, 1, randomized=True, seed=None)
-
   def test_randomization_does_not_depend_on_sequence_indices(self):
     dim = 2
     seed = 9427
@@ -259,6 +247,26 @@ class HaltonSequenceTest(tf.test.TestCase):
       sample, _ = random.halton.sample(
           1,
           sequence_indices=[2**30],
+          dtype=tf.float32,
+          randomized=False,
+          validate_args=True)
+      self.evaluate(sample)
+
+  def test_dim_is_negative(self):
+    with self.assertRaises(tf.errors.InvalidArgumentError):
+      sample, _ = random.halton.sample(
+          -1,
+          num_results=10,
+          dtype=tf.float32,
+          randomized=False,
+          validate_args=True)
+      self.evaluate(sample)
+
+  def test_dim_too_big(self):
+    with self.assertRaises(tf.errors.InvalidArgumentError):
+      sample, _ = random.halton.sample(
+          1001,
+          num_results=10,
           dtype=tf.float32,
           randomized=False,
           validate_args=True)

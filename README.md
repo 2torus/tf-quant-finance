@@ -1,5 +1,7 @@
 # TF Quant Finance: TensorFlow based Quant Finance Library
 
+[![Build Status](https://travis-ci.org/google/tf-quant-finance.svg?branch=master)](https://travis-ci.org/google/tf-quant-finance)
+
 ## Table of contents
 1. [Introduction](#introduction)
 2. [Installation](#installation)
@@ -17,7 +19,7 @@
 This library provides high-performance components leveraging the hardware
 acceleration support and automatic differentiation of TensorFlow. The
 library will provide TensorFlow support for foundational mathematical methods,
-mid-level methods, and specific pricing models. The coverage is being rapidly
+mid-level methods, and specific pricing models. The coverage is being
 expanded over the next few months.
 
 The library is structured along three tiers:
@@ -33,7 +35,7 @@ Copula samplers etc.
 3. **Pricing methods and other quant finance specific utilities**.
 Specific Pricing models (e.g Local Vol (LV), Stochastic Vol (SV),
 Stochastic Local Vol (SLV), Hull-White (HW)) and their calibration.
-Rate curve building and payoff descriptions.
+Rate curve building, payoff descriptions and schedule generation.
 
 We aim for the library components to be easily accessible at each level. Each
 layer will be accompanied by many examples which can be run independently of
@@ -43,30 +45,23 @@ higher level components.
 
 The easiest way to get started with the library is via the pip package.
 
+Note that library requires Python 3 and Tensorflow >= 2.1.
+
 First please install the most recent version of TensorFlow by following
 the [TensorFlow installation instructions](https://tensorflow.org/install).
 For example, you could install TensorFlow using
 
 ```sh
-pip install --upgrade tensorflow
+pip3 install --upgrade tensorflow
 ```
-
-or
-
-```sh
-pip install --upgrade tensorflow-gpu
-```
-
-if you want to use GPUs.
 
 Then run
 
 ```sh
-pip install --upgrade tf-quant-finance
+pip3 install --upgrade tf-quant-finance
 ```
 
-If you use Python 3, you might need to use ```pip3 install```. You'll
-maybe also have to use option ```--user```.
+You maybe also have to use the option ```--user```.
 
 ## TensorFlow training
 
@@ -75,6 +70,7 @@ following self-study introduction to TensorFlow notebooks:
 
    * [Introduction to TensorFlow Part 1 - Basics](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Introduction_to_TensorFlow_Part_1_-_Basics.ipynb).
    * [Introduction to TensorFlow Part 2 - Debugging and Control Flow](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Introduction_to_TensorFlow_Part_2_-_Debugging_and_Control_Flow.ipynb).
+   * [Introduction to TensorFlow Part 3 - Advanced Tensor Manipulation](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Introduction_to_TensorFlow_Part_3_-_Advanced_Tensor_Manipulation.ipynb).
 
 ## Development roadmap
 
@@ -93,15 +89,13 @@ development are:
       * Local volatility model.
       * Quadratic Local Vol model.
       * SABR model
-  * ADI method for solving multi dimensional PDEs.
   * Copulas: Support for defining and sampling from copulas.
   * Model Calibration:
       * Dupire local vol calibration.
       * SABR model calibration.
   * Rate curve fitting: Hagan-West algorithm for yield curve bootstrapping and
   the Monotone Convex interpolation scheme.
-  * Optimization:
-      * Conjugate gradient optimizer.
+  * Support for dates, day-count conventions, holidays, etc.
 
 
 ## Examples
@@ -112,6 +106,7 @@ for end-to-end examples. It includes tutorial notebooks such as:
   * [Monte Carlo via Euler Scheme](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Monte_Carlo_Euler_Scheme.ipynb)
   * [Black Scholes: Price and Implied Vol](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Black_Scholes_Price_and_Implied_Vol.ipynb).
   * [Root search using Brent's method](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Root_Search.ipynb)
+  * [Optimization](https://colab.research.google.com/github/google/tf-quant-finance/blob/master/tf_quant_finance/examples/jupyter_notebooks/Optimization.ipynb)
 
 The above links will open Jupyter Notebooks in Colab.
 
@@ -125,17 +120,16 @@ This section is meant for developers who want to contribute code to the
 library. If you are only interested in using the library, please follow the
 instructions in the [Installation](#installation) section.
 
-### Dependencies
+### Development dependencies
 
 This library has the following dependencies:
 
 1.  Bazel
 2.  Python 3 (Bazel uses Python 3 by default)
-3.  TensorFlow
-4.  TensorFlow Probability
-5.  Numpy
-6.  Scipy (used only in tests)
-7.  Attrs
+3.  TensorFlow nightly build (most functions should work with TensorFLow 2.1)
+4.  TensorFlow Probability nightly build
+5.  Numpy version 1.16 or higher
+6.  Attrs
 
 This library requires the
 [Bazel](https://bazel.build/) build system. Please follow the
@@ -147,7 +141,7 @@ You can install TensorFlow and related dependencies using the ```pip3 install```
 command:
 
 ```sh
-pip3 install --upgrade tensorflow tensorflow-probability numpy attrs scipy
+pip3 install --upgrade tf-nightly tfp-nightly numpy==1.16.0 attrs
 ```
 
 ### Commonly used commands
@@ -167,15 +161,36 @@ cd tf_quant_finance
 you can execute tests using the ```bazel test``` command. For example,
 
 ```sh
-bazel test tf_quant_finance/math/random/sobol:sobol_test
+bazel test tf_quant_finance/math/random_ops/sobol:sobol_test
 ```
 
 will run tests in
-[sobol_test.py](https://github.com/google/tf-quant-finance/blob/master/tf_quant_finance/math/random/sobol/sobol_test.py)
+[sobol_test.py](https://github.com/google/tf-quant-finance/blob/master/tf_quant_finance/math/random_ops/sobol/sobol_test.py)
 .
 
 Tests will be run using the Python version 3. Please make sure that you can
 run ```import tensorflow``` in the Python 3 shell, otherwise tests might fail.
+
+### Docker images
+
+The official TF Quant Finance Docker images are located in the
+[gcr.io](https://gcr.io/tf-quant-finance-images/tf-quant-finance) container
+repository.
+
+Images are tagged using the GitHub release version. Images contain
+all development dependencies. See [Dockerfile](Dockerfile) for details.
+
+You can pull the latest Docker image using
+
+```sh
+sudo docker pull gcr.io/tf-quant-finance-images/tf-quant-finance
+```
+
+To start a TF Quant Finance container, use the following command:
+
+```sh
+sudo docker run -it gcr.io/tf-quant-finance-images/tf-quant-finance
+```
 
 ### Building a custom pip package
 
@@ -193,7 +208,7 @@ pip install --user --upgrade artifacts/*.whl
 ## Community
 1. [GitHub repository](https://github.com/google/tf-quant-finance): Report bugs or make feature requests.
 
-2. [TensorFlow Blog](https://medium.com/tensorflow): Stay up to date on content from the TensorFlow team and best articles from the community.
+2. [TensorFlow Blog](https://blog.tensorflow.org/): Stay up to date on content from the TensorFlow team and best articles from the community.
 
 3. tf-quant-finance@google.com: Open mailing list for discussion and questions of this library.
 

@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Quasi Monte Carlo support: Halton sequence."""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import collections
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tf_quant_finance.math.random_ops import stateless
 
@@ -35,12 +31,14 @@ __all__ = [
 _MAX_DIMENSION = 1000
 
 # The maximum sequence index we support, depending on data type.
-_MAX_INDEX_BY_DTYPE = {tf.float32: 2**24 - 1, tf.float64: 2**53 - 1}
+_MAX_INDEX_BY_DTYPE = {tf.float32: 2**24 - 1, np.float32: 2**24 - 1,
+                       tf.float64: 2**53 - 1, np.float64: 2**53 - 1}
 
 # The number of coefficients we use to represent each Halton number when
 # expressed in the (prime) base for an event dimension. In theory this should be
 # infinite, but in practice it is useful to cap this based on data type.
-_NUM_COEFFS_BY_DTYPE = {tf.float32: 24, tf.float64: 54}
+_NUM_COEFFS_BY_DTYPE = {tf.float32: 24, np.float32: 24,
+                        tf.float64: 54, np.float64: 54}
 
 # Parameters that can be reused with subsequent calls to halton.sample().
 HaltonParams = collections.namedtuple(
@@ -60,11 +58,11 @@ HaltonParams = collections.namedtuple(
 def sample(dim,
            num_results=None,
            sequence_indices=None,
-           dtype=tf.float32,
            randomized=True,
            randomization_params=None,
            seed=None,
            validate_args=False,
+           dtype=None,
            name=None):
   r"""Returns a sample from the `dim` dimensional Halton sequence.
 
@@ -103,7 +101,7 @@ def sample(dim,
   #### Examples
 
   ```python
-  import tensorflow as tf
+  import tensorflow.compat.v2 as tf
   import tensorflow_probability as tfp
 
   # Produce the first 1000 members of the Halton sequence in 3 dimensions.
@@ -160,9 +158,6 @@ def sample(dim,
       parameter is None, then the `num_results` parameter must be specified
       which gives the number of desired samples starting from the first sample.
       Default value: `None`.
-    dtype: (Optional) The dtype of the sample. One of: `float16`, `float32` or
-      `float64`.
-      Default value: `tf.float32`.
     randomized: (Optional) bool indicating whether to produce a randomized
       Halton sequence. If True, applies the randomization described in [Owen
       (2017)][1]. If True, either seed or randomization_params must be
@@ -180,8 +175,12 @@ def sample(dim,
       specified. Ignored if randomized is False or randomization_params is
       specified.
       Default value: `None`.
-    validate_args: If True, checks that maximum index is not exceeded.
+    validate_args: If True, checks that maximum index is not exceeded and that
+      the dimension `dim` is less than 1 or greater than 1000.
       Default value: `False`.
+    dtype: Optional `dtype`. The dtype of the output `Tensor` (either `float32`
+    or `float64`).
+      Default value: `None` which maps to the `float32`.
     name:  (Optional) Python `str` describing ops managed by this function. If
       not supplied the name of this function is used.
       Default value: "halton_sample".
@@ -197,8 +196,7 @@ def sample(dim,
       `HaltonParams` that fully describes the randomization behavior.
 
   Raises:
-    ValueError: if both `sequence_indices` and `num_results` were specified or
-      if dimension `dim` is less than 1 or greater than 1000.
+    ValueError: if both `sequence_indices` and `num_results` were specified.
     ValueError: if `randomization` is True but `seed` is not specified.
     InvalidArgumentError: if `validate_args` is True and the maximum supported
       sequence index is exceeded.
@@ -208,19 +206,10 @@ def sample(dim,
   [1]: Art B. Owen. A randomized Halton algorithm in R. _arXiv preprint
        arXiv:1706.02808_, 2017. https://arxiv.org/abs/1706.02808
   """
-  if dim < 1 or dim > _MAX_DIMENSION:
-    raise ValueError('Dimension must be between 1 and {}. Supplied {}'.format(
-        _MAX_DIMENSION, dim))
   if (num_results is None) == (sequence_indices is None):
     raise ValueError('Either `num_results` or `sequence_indices` must be'
                      ' specified but not both.')
-
-  if randomized and (seed is None) and (randomization_params is None):
-    raise ValueError('`seed` or `randomization_params` must be specified if '
-                     '`randomized` is True.')
-
-  if not dtype.is_floating:
-    raise ValueError('dtype must be of `float`-type')
+  dtype = dtype or tf.float32
 
   with tf.compat.v1.name_scope(
       name, 'halton_sample', values=[num_results, sequence_indices]):
@@ -230,9 +219,13 @@ def sample(dim,
     # weights of the starting integer when expressed in the (prime) base for
     # an event dimension.
     if num_results is not None:
-      num_results = tf.convert_to_tensor(value=num_results)
+      num_results = tf.convert_to_tensor(value=num_results,
+                                         dtype=tf.int32,
+                                         name='name_results')
     if sequence_indices is not None:
-      sequence_indices = tf.convert_to_tensor(value=sequence_indices)
+      sequence_indices = tf.convert_to_tensor(value=sequence_indices,
+                                              dtype=tf.int32,
+                                              name='sequence_indices')
     indices = _get_indices(num_results, sequence_indices, dtype)
 
     runtime_assertions = []
@@ -244,12 +237,23 @@ def sample(dim,
               message=(
                   'Maximum sequence index exceeded. Maximum index for dtype %s '
                   'is %d.' % (dtype, _MAX_INDEX_BY_DTYPE[dtype]))))
+      runtime_assertions.append(
+          tf.compat.v1.assert_greater_equal(
+              dim, 1, message='`dim` should be greater than 1'))
+      runtime_assertions.append(
+          tf.compat.v1.assert_less_equal(
+              dim, _MAX_DIMENSION,
+              message='`dim` should be less or equal than %d' % _MAX_DIMENSION))
 
     with tf.compat.v1.control_dependencies(runtime_assertions):
-      radixes = tf.constant(_PRIMES[0:dim], dtype=dtype, shape=[dim, 1])
+      radixes = tf.convert_to_tensor(_PRIMES, dtype=dtype, name='radixes')
+      radixes = tf.reshape(radixes[0:dim], shape=[dim, 1])
 
-      max_sizes_by_axes = _MAX_SIZES_BY_AXES[dtype][:dim]
-      max_size = max_sizes_by_axes.max()
+      max_sizes_by_axes = tf.convert_to_tensor(
+          _MAX_SIZES_BY_AXES[dtype],
+          dtype=dtype,
+          name='max_sizes_by_axes')[:dim]
+      max_size = tf.reduce_max(max_sizes_by_axes)
 
       # The powers of the radixes that we will need. Note that there is a bit
       # of an excess here. Suppose we need the place value coefficients of 7
@@ -275,7 +279,7 @@ def sample(dim,
       # about. Noting that all a_i < b by definition of place value expansion,
       # we see that taking the elements mod b of the above vector produces the
       # place value expansion coefficients.
-      coeffs = tf.floor_div(indices, weights)
+      coeffs = tf.compat.v1.floor_div(indices, weights)
       coeffs *= 1. - tf.cast(weight_mask, dtype)
       coeffs %= radixes
       if not randomized:
@@ -301,11 +305,15 @@ def sample(dim,
       # `max_size_by_axes` coefficients are zero. The following statements
       # perform this correction.
       if zero_correction is None:
-        zero_correction = tf.random.stateless_uniform([dim, 1],
-                                                      seed=(seed, seed),
-                                                      dtype=dtype)
+        if seed is None:
+          zero_correction = tf.random.uniform([dim, 1], dtype=dtype)
+        else:
+          zero_correction = tf.random.stateless_uniform([dim, 1],
+                                                        seed=(seed, seed),
+                                                        dtype=dtype)
         zero_correction /= radixes**max_sizes_by_axes
         zero_correction = tf.reshape(zero_correction, [-1])
+
       return base_values + zero_correction, HaltonParams(perms, zero_correction)
 
 
@@ -352,7 +360,11 @@ def _get_permutations(num_results, dims, seed):
   def generate_one(d):
 
     def fn(i):
-      return stateless.stateless_random_shuffle(tf.range(d), seed=(seed + i, d))
+      if seed is None:
+        return tf.random.shuffle(tf.range(d))
+      else:
+        return stateless.stateless_random_shuffle(tf.range(d),
+                                                  seed=(seed + i, d))
 
     return tf.map_fn(
         fn, sample_range, parallel_iterations=1 if seed is not None else 10)

@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,24 +14,18 @@
 # limitations under the License.
 """PDE solver methods."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
+from tf_quant_finance.math.pde import boundary_conditions
+from tf_quant_finance.math.pde import fd_solvers
 from tf_quant_finance.math.pde import grids
-from tf_quant_finance.math.pde import time_marching_schemes
-from tf_quant_finance.math.pde.grid_stepper import BackwardGridStepper
-from tf_quant_finance.math.pde.grid_stepper import GridStepperState
-from tf_quant_finance.math.pde.pde_kernels import ParabolicDifferentialEquationSolver
+from tf_quant_finance.math.pde import steppers
 
 from tensorflow.python.util.all_util import remove_undocumented  # pylint: disable=g-direct-tensorflow-import
 
 _allowed_symbols = [
-    'BackwardGridStepper',
-    'GridStepperState',
     'grids',
-    'ParabolicDifferentialEquationSolver',
-    'time_marching_schemes',
+    'steppers',
+    'fd_solvers',
+    'boundary_conditions',
 ]
 
 remove_undocumented(__name__, _allowed_symbols)

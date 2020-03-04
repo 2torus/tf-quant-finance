@@ -1,3 +1,4 @@
+# Lint as: python3
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Lint as: python2, python3
 """Methods to construct a discount curve from bonds.
 
 Building discount curves is a core problem in mathematical finance. Discount
@@ -38,12 +38,8 @@ method described by Hagan and West in Ref [1, 2].
   Wilmott Magazine, pp. 70-81. May 2008.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tf_quant_finance.rates import cashflows
 from tf_quant_finance.rates.hagan_west import monotone_convex
@@ -224,9 +220,9 @@ def bond_curve(bond_cashflows,
     validate_args: Optional boolean flag to enable validation of the input
       arguments. The checks performed are: (1) There are no cashflows which
       expire before or at the corresponding settlement time (or at time 0 if
-      settlement time is not provided). (2) Cashflow times are strongly ordered
-      by increasing time. (3) Final cashflow for each bond is larger than any
-      other cashflow for that bond.
+      settlement time is not provided). (2) Cashflow times for each bond form
+      strictly increasing sequence. (3) Final cashflow for each bond is larger
+      than any other cashflow for that bond.
       Default value: False.
     dtype: `tf.Dtype`. If supplied the dtype for the (elements of)
       `bond_cashflows`, `bond_cashflow_times` and `present_values`.
@@ -306,13 +302,6 @@ def bond_curve(bond_cashflows,
           present_values,
           name='initial_rates')
 
-    # TODO(b/139053811): This check is necessary to exclude zero coupon bonds.
-    # Having zero coupons in the cashflows causes silent errors otherwise.
-    no_zero_coupons = [
-        tf.compat.v1.debugging.assert_greater(tf.size(cashflow), 1)
-        for cashflow in bond_cashflows
-    ]
-    control_inputs += no_zero_coupons
     with tf.compat.v1.control_dependencies(control_inputs):
       return _build_discount_curve(bond_cashflows, bond_cashflow_times,
                                    present_values, pv_settle_times,
@@ -469,7 +458,7 @@ def _build_discount_curve(bond_cashflows, bond_cashflow_times, present_values,
 
   initial_discount_factors = tf.math.exp(-initial_discount_rates * expiry_times)
   initial_vals = (False, False, 0, initial_discount_factors)
-  loop_result = tf.compat.v1.while_loop(
+  loop_result = tf.while_loop(
       cond, one_step, initial_vals, maximum_iterations=maximum_iterations)
   discount_factors = loop_result[-1]
   discount_rates = -tf.math.log(discount_factors) / expiry_times
@@ -537,22 +526,21 @@ def _perform_static_validation(bond_cashflows, bond_cashflow_times,
 def _validate_args_control_deps(bond_cashflows, bond_cashflow_times,
                                 pv_settle_times):
   """Returns assertions for the validity of the arguments."""
-  cashflows_are_strongly_ordered = []
+  cashflows_are_strictly_increasing = []
   cashflow_after_settlement = []
   final_cashflow_is_the_largest = []
   for bond_index, bond_cashflow in enumerate(bond_cashflows):
-    cashflow = bond_cashflows[bond_index]
     times = bond_cashflow_times[bond_index]
     time_difference = times[1:] - times[:-1]
-    cashflows_are_strongly_ordered.append(
-        tf.debugging.assert_greater(time_difference,
-                                    tf.zeros_like(time_difference)))
+    cashflows_are_strictly_increasing.append(
+        tf.debugging.assert_positive(time_difference))
     cashflow_after_settlement.append(
         tf.debugging.assert_greater(times[0], pv_settle_times[bond_index]))
     final_cashflow_is_the_largest.append(
         tf.debugging.assert_greater(
-            tf.fill(tf.shape(cashflow[:-1]), cashflow[-1]), cashflow[:-1]))
-  return (cashflow_after_settlement + cashflows_are_strongly_ordered +
+            tf.fill(tf.shape(bond_cashflow[:-1]),
+                    bond_cashflow[-1]), bond_cashflow[:-1]))
+  return (cashflow_after_settlement + cashflows_are_strictly_increasing +
           final_cashflow_is_the_largest)
 
 

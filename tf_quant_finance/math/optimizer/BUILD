@@ -7,7 +7,7 @@ package(default_visibility = ["//tf_quant_finance:__subpackages__"])
 py_library(
     name = "optimizer",
     srcs = ["__init__.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":conjugate_gradient",
     ],
@@ -20,6 +20,9 @@ py_test(
     python_version = "PY3",
     deps = [
         "//tf_quant_finance",
+        # test util,
+        # numpy dep,
+        # tensorflow dep,
     ],
 )
 
@@ -42,6 +45,7 @@ py_test(
     shard_count = 5,
     deps = [
         "//tf_quant_finance",
+        # test util,
         # numpy dep,
         # tensorflow dep,
     ],

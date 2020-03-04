@@ -17,6 +17,7 @@ py_library(
     name = "linear_interpolation",
     srcs = ["linear_interpolation.py"],
     deps = [
+        "//tf_quant_finance/math:piecewise",
         # numpy dep,
         # tensorflow dep,
     ],
@@ -30,6 +31,7 @@ py_test(
     #shard_count = 3,
     deps = [
         "//tf_quant_finance",
+        # test util,
         # numpy dep,
         # tensorflow dep,
     ],
