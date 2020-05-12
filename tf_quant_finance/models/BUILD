@@ -10,9 +10,10 @@ py_library(
     deps = [
         ":euler_sampling",
         ":generic_ito_process",
-        ":heston_model",
         ":ito_process",
         ":joined_ito_process",
+        "//tf_quant_finance/models/geometric_brownian_motion",
+        "//tf_quant_finance/models/heston",
         "//tf_quant_finance/models/hull_white",
     ],
 )
@@ -40,11 +41,14 @@ py_test(
     timeout = "moderate",
     srcs = ["generic_ito_process_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     deps = [
         "//tf_quant_finance",
         # test util,
+        # absl/testing:parameterized dep,
         # numpy dep,
         # tensorflow dep,
+        # xla_cpu_jit xla dep,
     ],
 )
 
@@ -69,34 +73,6 @@ py_test(
         "//tf_quant_finance",
         # test util,
         # absl/testing:parameterized dep,
-        # numpy dep,
-        # tensorflow dep,
-    ],
-)
-
-py_library(
-    name = "heston_model",
-    srcs = ["heston_model.py"],
-    deps = [
-        ":generic_ito_process",
-        ":utils",
-        "//tf_quant_finance/math:piecewise",
-        "//tf_quant_finance/math/random_ops",
-        # tensorflow dep,
-    ],
-)
-
-py_test(
-    name = "heston_model_test",
-    size = "medium",
-    timeout = "moderate",
-    srcs = ["heston_model_test.py"],
-    python_version = "PY3",
-    shard_count = 3,
-    deps = [
-        ":heston_model",
-        "//tf_quant_finance",
-        # test util,
         # numpy dep,
         # tensorflow dep,
     ],
@@ -145,10 +121,23 @@ py_test(
     size = "small",
     srcs = ["utils_test.py"],
     python_version = "PY3",
+    shard_count = 3,
     deps = [
         ":utils",
         "//tf_quant_finance",
         # test util,
+        # absl/testing:parameterized dep,
+        # numpy dep,
         # tensorflow dep,
+    ],
+)
+
+filegroup(
+    name = "docs",
+    srcs = [
+        "README.md",
+    ],
+    data = [
+        "//tf_quant_finance/models/legacy:docs",
     ],
 )

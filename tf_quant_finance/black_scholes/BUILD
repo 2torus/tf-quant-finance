@@ -9,11 +9,13 @@ py_library(
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
+        ":brownian_bridge",
         ":crr_binomial_tree",
         ":implied_vol_approximation",
         ":implied_vol_lib",
         ":implied_vol_newton_root",
         ":vanilla_prices",
+        "//tf_quant_finance/black_scholes/approximations",
         # numpy dep,
         # tensorflow dep,
     ],
@@ -39,6 +41,28 @@ py_test(
         # numpy dep,
         # tensorflow dep,
         # tensorflow_probability dep,
+    ],
+)
+
+py_library(
+    name = "brownian_bridge",
+    srcs = ["brownian_bridge.py"],
+    srcs_version = "PY3",
+    deps = [
+        # tensorflow dep,
+    ],
+)
+
+py_test(
+    name = "brownian_bridge_test",
+    srcs = ["brownian_bridge_test.py"],
+    python_version = "PY3",
+    shard_count = 6,
+    deps = [
+        "//tf_quant_finance",
+        # test util,
+        # numpy dep,
+        # tensorflow dep,
     ],
 )
 
@@ -147,5 +171,12 @@ py_test(
         # absl/testing:parameterized dep,
         # numpy dep,
         # tensorflow dep,
+    ],
+)
+
+filegroup(
+    name = "docs",
+    srcs = [
+        "README.md",
     ],
 )
